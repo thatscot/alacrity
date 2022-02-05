@@ -18,10 +18,14 @@ const DB_INSERT_STRING = `
       last_name,
       email,
       avatar,
-      marketing
+      marketing,
+      pom_minutes,
+      pom_seconds,
+      notifications_sound_active,
+      notifications_active
   )
   VALUES
-  ($1, $2, $3, $4, $5, $6, $7, $8)`;
+  ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
 
 const DB_ID_SEARCH_STRING = `SELECT * FROM users WHERE auth_Id = $1`;
 
@@ -35,15 +39,10 @@ passport.use(
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: "/auth/google/callback",
     },
-    function (accessToken, refreshToken, profile, cb) {
+    function (accessToken, refreshToken, profile, done) {
       const { id, provider } = profile;
       const { name, given_name, family_name, picture, email } = profile._json;
-      const marketing = false;
-
-      const user = {
-        displayName: profile.displayName,
-        photos: [{ value: picture }],
-      };
+      const user = { userId: id };
 
       poolQuery(
         id,
@@ -54,7 +53,7 @@ passport.use(
         email,
         picture,
         user,
-        cb
+        done
       );
     }
   )
@@ -70,16 +69,12 @@ passport.use(
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
       callbackURL: "/auth/github/callback",
     },
-    function (accessToken, refreshToken, profile, cb) {
+    function (accessToken, refreshToken, profile, done) {
       const { id, provider, displayName } = profile;
       const { email, avatar_url } = profile._json;
       const firstName = "";
       const lastName = "";
-
-      const user = {
-        displayName: profile.displayName,
-        photos: [{ value: avatar_url }],
-      };
+      const user = { userId: id };
 
       poolQuery(
         id,
@@ -90,7 +85,7 @@ passport.use(
         email,
         avatar_url,
         user,
-        cb
+        done
       );
     }
   )
@@ -107,7 +102,7 @@ passport.use(
       callbackURL: "/auth/facebook/callback",
       profileFields: ["id", "displayName", "email", "name"],
     },
-    function (accessToken, refreshToken, profile, cb) {
+    function (accessToken, refreshToken, profile, done) {
       const { id, provider, displayName } = profile;
       const { email, last_name, first_name } = profile._json;
 
@@ -116,10 +111,7 @@ passport.use(
       )
         .then((response) => response.json())
         .then((result) => {
-          const user = {
-            displayName: profile.displayName,
-            photos: [{ value: result.picture.data.url }],
-          };
+          const user = { userId: id };
 
           poolQuery(
             id,
@@ -130,7 +122,7 @@ passport.use(
             email,
             result.picture.data.url,
             user,
-            cb
+            done
           );
         })
         .catch((e) => console.log(e));
@@ -147,17 +139,13 @@ passport.use(
       consumerSecret: process.env.TWITTER_CLIENT_SECRET,
       callbackURL: "/auth/twitter/callback",
     },
-    function (accessToken, refreshToken, profile, cb) {
+    function (accessToken, refreshToken, profile, done) {
       const { id, name, profile_image_url } = profile._json;
       const { provider } = profile;
       const email = "";
       const givenName = "";
       const familyName = "";
-
-      const user = {
-        displayName: name,
-        photos: [{ value: profile_image_url }],
-      };
+      const user = { userId: id };
 
       poolQuery(
         id,
@@ -168,7 +156,7 @@ passport.use(
         email,
         profile_image_url,
         user,
-        cb
+        done
       );
     }
   )
@@ -176,7 +164,7 @@ passport.use(
 
 //     ---------- HELPERS ----------     //
 
-// Complete pool query calling `getDBInsertString()` and `getSearchForAuthIdString()`
+// Complete pool query
 const poolQuery = (
   id,
   provider,
@@ -186,9 +174,16 @@ const poolQuery = (
   email,
   picture,
   user,
-  cb
+  done
 ) => {
-  const marketing = null;
+
+  const defaultSettings = {
+    marketing: false,
+    pom_minutes: 25,
+    pom_seconds: 00,
+    notifications_sound_active: true,
+    notifications_active: true,
+  };
 
   return pool
     .query(DB_ID_SEARCH_STRING, [id])
@@ -202,18 +197,34 @@ const poolQuery = (
           last_name,
           email,
           picture,
-          marketing,
+          defaultSettings.marketing,
+          defaultSettings.pom_minutes,
+          defaultSettings.pom_seconds,
+          defaultSettings.notifications_sound_active,
+          defaultSettings.notifications_active,
         ]);
-        cb(null, user);
+
+        done(null, user);
       } else {
-        cb(null, user);
+        done(null, user);
       }
     })
     .catch((e) => console.log(e));
 };
 
+
 // Serialize authenticated user to a persistent session.
-passport.serializeUser((user, cb) => cb(null, user));
+passport.serializeUser((user, done) => {
+  done(null, user.userId);
+});
 
 // Deserialize authenticated user from a persistent session.
-passport.deserializeUser((user, cb) => cb(null, user));
+passport.deserializeUser((id, done) => {
+  pool.query(DB_ID_SEARCH_STRING, [id]).then((result) => {
+    if (result.rows.length === 0) {
+      done(new Error("User not found"), null);
+    } else {
+      done(null, result.rows[0]);
+    }
+  });
+});

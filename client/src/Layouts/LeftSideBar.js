@@ -1,21 +1,22 @@
-import React from "react";
-import Logo from '../Assets/img/logo.svg';
-import DashBoardImg from '../Assets/img/dashboard-24.png';
-import PieChartImg from '../Assets/img/pie-chart-24.png';
-import SettingsImg from '../Assets/img/settings-24.png';
+import React, { useState } from "react";
+import Logo from "../Assets/img/logo.svg";
+import DashBoardImg from "../Assets/img/dashboard-24.png";
+import PieChartImg from "../Assets/img/pie-chart-24.png";
+import SettingsImg from "../Assets/img/settings-24.png";
+import SiteSettingsPopup from "../Components/Settings/SiteSettingsPopup";
 
-const LeftSideBar = () => {
-    return (
-        <aside className="left-sidebar">
-            {/* {console.log(DashBoardImg)} */}
-        <img src={Logo} alt="logo"></img>
-        <div className="items">
+const LeftSideBar = ({ user }) => {
+  const [settingsIsOpen, setSettingsIsOpen] = useState(false);
+  return (
+    <aside className="left-sidebar">
+      <img src={Logo} alt="logo"></img>
+      {user && (
+        <div className="items left-animation">
           <div>
             <a href="#left-sidebar">
               <img src={DashBoardImg} alt="dashboard logo"></img>
               <span>Dashboard</span>
             </a>
-  
           </div>
           <div>
             <a href="#">
@@ -23,15 +24,20 @@ const LeftSideBar = () => {
               <span>Analytics</span>
             </a>
           </div>
-          <div>
-            <a href="#">
-              <img src={SettingsImg} alt="settings logo"></img>
-              <span>Settings</span>
-            </a>
+          <div
+            onClick={() => {
+              setSettingsIsOpen(true);
+            }}
+            className="settings-btn"
+          >
+            <img src={SettingsImg} alt="settings logo"></img>
+            <span>Settings</span>
           </div>
         </div>
-      </aside>
-    );
-}
+      )}
+      {settingsIsOpen && <SiteSettingsPopup close={setSettingsIsOpen} />}
+    </aside>
+  );
+};
 
 export default LeftSideBar;

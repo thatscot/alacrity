@@ -1,16 +1,29 @@
 const authRouter = require("express").Router();
 const passport = require("passport");
-const CLIENT_URL = "http://localhost:3000/";
+
+// Production / Development environment selection.
+const CLIENT_URL =
+  process.env.WORKING_ENVIRONMENT === "production"
+    ? "https://alacrity-focus.herokuapp.com"
+    : "http://localhost:3000";
 
 // Handle successful login (user authenticated).
 authRouter.get("/login/success", (req, res) => {
+
   if (req.user) {
+    const minUserLoginDetails = {
+      avatar: req.user.avatar,
+      displayName: req.user.display_name,
+    };
+
     res.status(200).json({
       success: true,
       message: "authentication successful",
-      user: req.user,
+      user: minUserLoginDetails,
       cookies: req.cookies,
     });
+  } else {
+    res.status(401).json({ success: false, Message: "Not authorized" });
   }
 });
 
